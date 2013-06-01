@@ -179,7 +179,7 @@ static ngx_int_t ngx_http_gm_resize(ngx_http_request_t *r,ngx_http_gm_loc_conf_t
             ngx_cpystrn(origpath,orig->data,orig->len+1);
             //生成缩略图
             u_char cmd[300];
-            u_char *p=ngx_sprintf(cmd,"/usr/bin/gm convert %s -resize %ix%i %s.%ix%i.jpg%Z",origpath,*width,*height,origpath,*width,*height);
+            u_char *p=ngx_sprintf(cmd,"gm convert %s -resize %ix%i %s.%ix%i.jpg%Z",origpath,*width,*height,origpath,*width,*height);
             char *ccmd=(char *)cmd;
             int err=system(ccmd);
             if(err==0&&p){

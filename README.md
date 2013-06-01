@@ -23,12 +23,15 @@ nginx handler模块，访问图片文件时，根据配置自动生成缩略图
 	gm_allow 400 300;
 	gm_allow 800 600;
 	```
+	
+- 缩略图命名规则：原图```http://{host}/img/name.jpg```，缩略图访问时使用```http://{host}/img/name.jpg.400x300.jpg```
 
 - nginx工作进程以nobody用户运行，需要将图片目录设置为nobody可写
 	
 
 ## TODO
-- gm命令配置
+- gm命令path配置
+- 自动识别文件扩展名
 
 ## 参考
 - [Nginx开发从入门到精通](http://tengine.taobao.org/book/index.html)
