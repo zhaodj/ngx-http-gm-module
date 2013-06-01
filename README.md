@@ -29,3 +29,7 @@ nginx handler模块，访问图片文件时，根据配置自动生成缩略图
 
 ## TODO
 - gm命令配置
+
+## 参考
+- [Nginx开发从入门到精通](http://tengine.taobao.org/book/index.html)
+
