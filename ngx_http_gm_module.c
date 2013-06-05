@@ -9,6 +9,7 @@ typedef struct{
 
 typedef struct{
     ngx_array_t *rules;
+    ngx_int_t convert;
 }ngx_http_gm_loc_conf_t;
 
 static ngx_int_t ngx_http_gm_handler(ngx_http_request_t *r);
@@ -18,6 +19,8 @@ static ngx_int_t ngx_http_gm_init(ngx_conf_t *cf);
 static void *ngx_http_gm_create_loc_conf(ngx_conf_t *cf);
 
 static char *ngx_http_gm_rule(ngx_conf_t *cf, ngx_command_t *cmd,void *conf);
+
+static char *ngx_http_gm_convert(ngx_conf_t *cf, ngx_command_t *cmd,void *conf);
 
 static int parse_path(ngx_http_request_t *r,ngx_str_t *path,ngx_str_t *orig,ngx_uint_t *width,ngx_uint_t *height);
 
@@ -32,7 +35,13 @@ static ngx_command_t ngx_http_gm_commands[] = {
         0,
         NULL
     },
-
+    {
+        ngx_string("gm_convert"),
+        NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+        ngx_http_gm_convert,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_gm_loc_conf_t, convert),
+        NULL },
     ngx_null_command
 };
 
@@ -77,9 +86,14 @@ static ngx_int_t ngx_http_gm_handler(ngx_http_request_t *r)
     ngx_http_core_loc_conf_t  *clcf;
     ngx_http_gm_loc_conf_t  *gmlcf;
 
+    gmlcf = ngx_http_get_module_loc_conf(r,ngx_http_gm_module);
+
+    if (gmlcf->convert == NGX_CONF_UNSET || gmlcf->convert==0){
+        return NGX_DECLINED;
+    }
     //只支持get,head
     if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD))) {
-        return NGX_HTTP_NOT_ALLOWED;
+        return NGX_DECLINED;
     }
 
     last = ngx_http_map_uri_to_path(r, &path, &root, 0);
@@ -91,7 +105,6 @@ static ngx_int_t ngx_http_gm_handler(ngx_http_request_t *r)
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,"http filename: \"%s\"", path.data);
 
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
-    gmlcf = ngx_http_get_module_loc_conf(r,ngx_http_gm_module);
     ngx_memzero(&of, sizeof(ngx_open_file_info_t));
 
     of.read_ahead = clcf->read_ahead;
@@ -180,11 +193,14 @@ static ngx_int_t ngx_http_gm_resize(ngx_http_request_t *r,ngx_http_gm_loc_conf_t
             //生成缩略图
             u_char cmd[300];
             u_char *p=ngx_sprintf(cmd,"gm convert %s -resize %ix%i %s.%ix%i.jpg%Z",origpath,*width,*height,origpath,*width,*height);
-            char *ccmd=(char *)cmd;
-            int err=system(ccmd);
-            if(err==0&&p){
-                return NGX_DECLINED;
+            if(p){
+                char *ccmd=(char *)cmd;
+                int err=system(ccmd);
+                if(err!=0){
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"generate thumbnail fail");
+                }
             }
+            return NGX_DECLINED;
         }
     }
     return NGX_DECLINED;
@@ -198,6 +214,7 @@ static void *ngx_http_gm_create_loc_conf(ngx_conf_t *cf)
     {
         return NULL;
     }
+    local_conf->convert=NGX_CONF_UNSET;
 
     return local_conf;
 }
@@ -237,6 +254,19 @@ static char *ngx_http_gm_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+static char *ngx_http_gm_convert(ngx_conf_t *cf, ngx_command_t *cmd,void *conf)
+{
+    ngx_http_gm_loc_conf_t* local_conf;
+
+    local_conf = conf;
+
+    char* rv = NULL;
+
+    rv = ngx_conf_set_flag_slot(cf, cmd, conf);
+
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "gm convert:%d", local_conf->convert);
+    return rv;
+}
 
 static ngx_int_t ngx_http_gm_init(ngx_conf_t *cf)
 {
